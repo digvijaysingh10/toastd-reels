@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -66,5 +66,5 @@ const CommentSection: React.FC<CommentSectionProps> = React.memo(({ comments, on
     </div>
   );
 });
-
+CommentSection.displayName = 'CommentSection';
 export default CommentSection;
