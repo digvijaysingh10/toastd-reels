@@ -1,101 +1,144 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import ReelVideo from "@/components/ReelVideo";
+import CommentSection from "@/components/CommentSection";
+import { Button } from "@/components/ui/button";
+import { FaHeart, FaComment, FaShare } from "react-icons/fa";
+import { debounce } from "lodash";
 
-export default function Home() {
+const videos = [
+  { id: "video1", src: "/video1.mp4" },
+  { id: "video2", src: "/video2.mp4" },
+];
+
+const Home: React.FC = () => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [videoStates, setVideoStates] = useState(
+    videos.map(() => ({
+      likes: 0,
+      comments: [] as string[],
+      isLiked: false,
+      isMuted: true,
+      isPlaying: true,
+    }))
+  );
+  const [isCommentVisible, setIsCommentVisible] = useState(false);
+  const [isShareVisible, setIsShareVisible] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
+
+  const handleScroll = useCallback(
+    debounce(() => {
+      if (containerRef.current) {
+        const index = Math.round(containerRef.current.scrollTop / window.innerHeight);
+        setActiveIndex(index);
+        router.push(`?video=${videos[index].id}`);
+      }
+    }, 200),
+    [router]
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
+  }, [handleScroll]);
+
+  const handleAddComment = useCallback((newComment: string) => {
+    setVideoStates((prevStates) =>
+      prevStates.map((state, index) =>
+        index === activeIndex
+          ? { ...state, comments: [...state.comments, newComment] }
+          : state
+      )
+    );
+  }, [activeIndex]);
+
+  const toggleVisibility = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    setter((prevState) => !prevState);
+  };
+
+  const shareToWhatsApp = () => {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://wa.me/?text=${url}`, '_blank');
+  };
+
+  const shareToFacebook = () => {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+  };
+
+  const copyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    alert("Link copied to clipboard!");
+  };
+
+  const downloadVideo = () => {
+    const videoUrl = videos[activeIndex].src;
+    const link = document.createElement('a');
+    link.href = videoUrl;
+    link.download = videoUrl.split("/").pop() || "video.mp4";
+    link.click();
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div ref={containerRef} className="snap-y snap-mandatory h-screen w-full overflow-y-scroll">
+      {videos.map((video, index) => (
+        <div key={video.id} className="snap-center h-screen w-full relative">
+          <ReelVideo
+            src={video.src}
+            isActive={index === activeIndex}
+            isMuted={videoStates[activeIndex].isMuted}
+            isPlaying={videoStates[activeIndex].isPlaying}
+          />
+          <div className="absolute bottom-5 right-5 flex flex-col gap-4 text-white text-xl">
+            <Button
+              onClick={() => {
+                setVideoStates((prevStates) => {
+                  const updatedState = [...prevStates];
+                  updatedState[activeIndex].isLiked = !updatedState[activeIndex].isLiked;
+                  updatedState[activeIndex].likes += updatedState[activeIndex].isLiked ? 1 : -1;
+                  return updatedState;
+                });
+              }}
+              aria-label="Like video"
+              className={`transition-transform ${videoStates[activeIndex].isLiked ? 'text-red-500 scale-110' : 'text-neutral-400'}`}
+            >
+              <FaHeart /> {videoStates[activeIndex].likes}
+            </Button>
+            <Button onClick={() => toggleVisibility(setIsCommentVisible)}>
+              <FaComment />
+            </Button>
+            <Button onClick={() => toggleVisibility(setIsShareVisible)}>
+              <FaShare />
+            </Button>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          {isShareVisible && (
+            <div className="absolute bottom-16 right-0 bg-white text-black p-4 rounded-lg shadow-lg flex flex-col gap-2">
+              <Button onClick={shareToWhatsApp}>Share to WhatsApp</Button>
+              <Button onClick={shareToFacebook}>Share to Facebook</Button>
+              <Button onClick={copyLink}>Copy Link</Button>
+              <Button onClick={downloadVideo}>Download Video</Button>
+              <Button onClick={() => toggleVisibility(setIsShareVisible)}>Cancel</Button>
+            </div>
+          )}
+
+          <CommentSection
+            comments={videoStates[activeIndex].comments}
+            onAddComment={handleAddComment}
+            isVisible={isCommentVisible}
+            onClose={() => toggleVisibility(setIsCommentVisible)}
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      ))}
     </div>
   );
-}
+};
+
+export default Home;
